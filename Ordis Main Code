@@ -1,0 +1,127 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using System.Speech.Synthesis;
+using System.Speech.Recognition;
+using System.Diagnostics;
+using System.Management;
+
+namespace Audis
+{
+    public partial class Form1 : Form
+    {
+        SpeechSynthesizer s = new SpeechSynthesizer();
+        Choices list = new Choices();
+        Boolean wake = true;
+        public Form1()
+        {
+            SpeechRecognitionEngine rec = new SpeechRecognitionEngine();
+            
+
+            list.Add(new String[] { "hello", "how are you","what time is it", "what is the date today","open google", "sleep","wake", "restart","update"});
+            Grammar gr = new Grammar(new GrammarBuilder(list));
+
+
+            try
+            {
+                rec.RequestRecognizerUpdate();
+                rec.LoadGrammar(gr);
+                rec.SpeechRecognized += rec_SpeechRecognized;
+                rec.SetInputToDefaultAudioDevice();
+                rec.RecognizeAsync(RecognizeMode.Multiple);
+            }
+            catch
+            {
+                return;
+            }
+
+            s.SelectVoiceByHints(VoiceGender.Male);
+
+            s.Speak("Good Afternoon my name is Ordis");
+
+            InitializeComponent();
+        }
+         
+        public void restart()
+        {
+            Process.Start(@"C:\Users\Ordis\Audis.exe");
+            Environment.Exit(0);
+        }
+        public void say(String h)
+        {
+            s.Speak(h);
+            textBox2.AppendText(h + "\n");
+        }
+        private void rec_SpeechRecognized(object sender, SpeechRecognizedEventArgs e)
+        {
+            String r = e.Result.Text;
+
+            if (r == "restart" ||r == "update")
+            {
+                restart();
+            }
+
+            if (r == "wake")
+            {
+                wake = true;
+            }
+            if (r == "sleep")
+            {
+                wake = false;
+            }
+            if (wake == true)
+            {
+                //what you say
+                if (r == "hello")
+                {
+                    // What it says 
+                    say("Good day operator.");
+                }
+                if (r == "how are you")
+                {
+                    say("Great, And you?");
+                }
+
+                //Datetime 
+                if (r == "what time is it")
+                {
+                    say(DateTime.Now.ToString("h:mm tt"));
+
+                }
+                if (r == "what is the date today")
+                {
+                    say(DateTime.Now.ToString("d/M/yyyy"));
+                }
+
+                if (r == "open google")
+                {
+                    say("Opening google");
+                    Process.Start("http://www.google.co.uk");
+                }
+                textBox1.AppendText(r + "\n");
+            }
+            
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+
+        }
+
+        private void Form1_Load_1(object sender, EventArgs e)
+        {
+
+        }
+
+        private void label1_Click(object sender, EventArgs e)
+        {
+
+        }
+    }
+}
