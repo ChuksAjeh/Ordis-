@@ -1,0 +1,341 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using System.Speech.Synthesis;
+using System.Speech.Recognition;
+using System.Diagnostics;
+using System.Management;
+using System.Xml;
+using System.IO;
+
+namespace Audis
+{
+    public partial class Form1  : Form
+    {
+        SpeechSynthesizer s = new SpeechSynthesizer();
+
+        //Sql Init 
+        String name = "Chooks";
+
+        public Boolean search = false;
+        string temp;
+
+        string condition;
+
+        Choices list = new Choices();
+
+        Boolean wake = true;
+
+        public Form1()
+        {
+            SpeechRecognitionEngine rec = new SpeechRecognitionEngine();
+
+
+            list.Add(File.ReadAllLines(@"C:\Ordis Commands\commonwords.txt"));
+            Grammar gr = new Grammar(new GrammarBuilder(list));
+
+
+            try
+            {
+                rec.RequestRecognizerUpdate();
+                rec.LoadGrammar(gr);
+                rec.SpeechRecognized += rec_SpeechRecognized;
+                rec.SetInputToDefaultAudioDevice();
+                rec.RecognizeAsync(RecognizeMode.Multiple);
+            }
+            catch
+            {
+                return;
+            }
+
+            s.SelectVoiceByHints(VoiceGender.Male);
+
+            s.Speak("Hello, my name is Ordis");
+
+            InitializeComponent();
+
+        }
+        //Getting the weather: gets queries on the weather from yahoo api
+        public String GetWeather(String input)
+        {
+            String query = String.Format("https://query.yahooapis.com/v1/public/yql?q=select * from weather.forecast where woeid in (select woeid from geo.places(1) where text='London, cr')&format=xml&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys");
+            XmlDocument wData = new XmlDocument();
+            try
+            {
+                wData.Load(query);
+            }
+            catch
+            {
+                MessageBox.Show("Error no internet connection");
+                return "Error, no internet!";
+            }
+            XmlNamespaceManager manager = new XmlNamespaceManager(wData.NameTable);
+            manager.AddNamespace("yweather", "http://xml.weather.yahoo.com/ns/rss/1.0");
+
+            XmlNode channel = wData.SelectSingleNode("query").SelectSingleNode("results").SelectSingleNode("channel");
+            XmlNodeList nodes = wData.SelectNodes("query/results/channel");
+            try
+            {
+                 int rawtemp = int.Parse(channel.SelectSingleNode("item").SelectSingleNode("yweather:condition", manager).Attributes["temp"].Value);
+                temp = (rawtemp - 32) * 5/9 + "";
+                condition = channel.SelectSingleNode("item").SelectSingleNode("yweather:condition", manager).Attributes["text"].Value;
+                if (input == "temp")
+                {
+                    return temp;
+                }
+                if (input == "cond")
+                {
+                    return condition;
+                }
+            }
+            catch
+            {
+                return "Error Reciving data";
+            }
+            return "error";
+        }
+
+
+        // function to kill programs  
+        public void KillProg(string s)
+        {
+            //Calls the diagnostics library
+            System.Diagnostics.Process[] procs = null;
+
+
+            try
+            {
+               
+                procs = Process.GetProcessesByName(s);
+                Process prog = procs[0];
+
+                // If the program has not exited then kill it.
+                if(!prog.HasExited)
+                {
+                    prog.Kill();
+                }
+            }
+            catch
+            {
+                say("Error application can not be closed");
+            }
+            finally 
+            {
+                if(procs != null)
+                {
+                    foreach(Process p in procs)
+                    {
+                        p.Dispose();
+                    }
+                }
+            }
+            procs = null;
+        }
+         
+        public void restart()
+        {
+            Process.Start(@"C:\Users\Ordis\Audis.exe");
+            Environment.Exit(0);
+        }
+        public void say(String h)
+        {
+            s.Speak(h);
+            
+            textBox2.AppendText(h + "\n");
+        }
+
+        //Greetings:
+        String[] greetings = new String[4] { "Hello", "Hi,How are you ", "Hi", "How can help you, Chooks?" };
+
+        public String greetings_action()
+        {
+            Random rand = new Random();
+            return greetings[rand.Next(3)];
+
+        }
+        private void rec_SpeechRecognized(object sender, SpeechRecognizedEventArgs e)
+        {
+            String r = e.Result.Text;
+
+
+
+
+            //Commands:
+
+            //connected via directories to always restart the program 
+
+            // calls out to ordis for more human interactions
+
+            if(search)
+            {
+                say("Searching");
+                Process.Start("https://www.google.co.uk/webhp?hl=en&sa=X&ved=0ahUKEwjVwNOGtfLSAhViJpoKHd-IAn8QPAgD#hl=en&q="+r);
+                search = false;
+            }
+
+            if (r == "ordis")
+            {
+                
+                say(greetings_action());
+            }
+
+            if (r == "restart" ||r == "update")
+            {
+                restart();
+            }
+
+            if (r == "wake")
+            {
+                wake = true;
+                label3.Text = "State: Awake";
+                
+            }
+            //stops taking in vocal input as long as sleep has been said. can be 'broken' to make it recieve inputs again by saying 'wake'.
+            if (r == "sleep")
+            {
+                wake = false;
+                label3.Text = "State: Asleep";
+            }
+            if (wake == true && search == false)
+            {
+                if(r == "search for")
+                {
+                    search = true;
+                }
+
+                if(r == "whats my name")
+                {
+                    say("your name is,"+ name);
+                }
+                if(r == "stop music")
+                {
+                    KillProg("Spotify.bin");
+                }
+                
+
+                if(r == "music")
+                {
+                    say("Opening Spotify");
+                    Process.Start(@"C:\Users\chuks\AppData\Roaming\Spotify\Spotify.exe");
+                }
+
+
+                if(r == "next")
+                {
+                    SendKeys.Send("^{RIGHT}");
+
+                }
+
+
+                if(r == "back")
+                {
+                    SendKeys.Send("^{LEFT}");
+                }
+
+                if (r == "play" || r == "pause")
+                {
+                    SendKeys.Send(" ");
+                }
+                
+
+
+                //maximises form window
+                if (r == "maximise")
+                {
+                    say("maximising");
+                    this.WindowState = FormWindowState.Normal;
+                    
+                }
+
+                //Minimises form window
+                if (r == "minimise")
+                {
+                    say("minimising");
+                    this.WindowState = FormWindowState.Minimized;
+                }
+
+
+                //Weather: Note can be extended to say the highs and lows of the day.
+                if(r == "whats the weather like" )
+                {
+                    say("The sky is "+ GetWeather("cond")+"in London.");
+                }
+
+                //No response at the moment.
+                if (r == "whats the temperature ")
+                {
+                    say("It is" + GetWeather("temp") + "degrees celcius in London");
+                }
+
+                //Open office tools: word only at the moment                 
+                if(r == "open word")
+                {
+                    say("Opening word");
+                    Process.Start(@"C:\Program Files (x86)\Microsoft Office\root\Office16\WINWORD.exe");
+                    Environment.Exit(0);
+                }
+
+                //Causes an index error at the moment.
+                if(r == "close word")
+                {
+                    KillProg("WINWORD.bin");
+                }
+                
+
+                //what you say
+                if (r == "hello")
+                {
+                    // What it says 
+                    say("Good day Chooks.");
+                }
+                if (r == "how are you")
+                {
+                    say("Great, And you?");
+                }
+
+                //Datetime 
+                if (r == "what time is it")
+                {
+                    say(DateTime.Now.ToString("h:mm tt"));
+
+                }
+                if (r == "what is the date today" || r == "what is today" )
+                {
+                    say(DateTime.Now.ToString("d/M/yyyy"));
+                }
+
+                if (r == "open google")
+                {
+                    say("Opening google");
+                    //opens up external apps or websites 
+                    Process.Start("http://www.google.co.uk");
+                    
+                }
+                textBox1.AppendText(r + "\n");
+                
+            }
+            
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+
+        }
+
+        private void Form1_Load_1(object sender, EventArgs e)
+        {
+
+        }
+
+        private void label1_Click(object sender, EventArgs e)
+        {
+
+        }
+    }
+}
