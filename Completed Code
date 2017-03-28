@@ -105,25 +105,26 @@ namespace Audis
         // function to kill programs  
         public void KillProg(string s)
         {
-            //Calls the diagnostics library
+            //Calls the diagnostics library into an array call 'procs' which is empty 
             System.Diagnostics.Process[] procs = null;
 
 
             try
             {
+               // Tries to get the name of the process which is a string 
                
                 procs = Process.GetProcessesByName(s);
-                Process prog = procs[0];
+                Process prog = procs[0]; //equal to the first element within the array 
 
                 // If the program has not exited then kill it.
-                if(!prog.HasExited)
+                if(!prog.HasExited) //if the process is still running kill
                 {
                     prog.Kill();
                 }
             }
             catch
             {
-                say("Error application can not be closed");
+                say("Error application can not be closed"); //if it can't be killed instead of crashing catch the error 
             }
             finally 
             {
@@ -135,7 +136,7 @@ namespace Audis
                     }
                 }
             }
-            procs = null;
+            procs = null; // array is empty once again
         }
          
         public void restart()
